@@ -50,8 +50,8 @@ export type CustomFetch<T = any> = BaseFetch<T>
  * API 配置（两种方式互斥）
  */
 export type SiYuanAPIConfig =
-  | { baseURL: string, token: string } // 方式1: baseURL + token
-  | { customFetch: BaseFetch } // 方式2: customFetch（使用 BaseFetch 结构）
+  | { baseURL: string, token: string, customFetch?: never }
+  | { baseURL?: never, token?: never, customFetch: BaseFetch }
 
 
 /**
@@ -209,7 +209,7 @@ export function createAPI(config: SiYuanAPIConfig): SiYuanAPI {
 }
 
 
-declare module './SiYuanAPI.js' {
+declare module '@wetoria/siyuan-sdk' {
   interface SiYuanAPI {
     sql: (stmt: string) => Promise<ApiResponse<any>>
   }
