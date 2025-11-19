@@ -1,0 +1,38 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    /* 输出配置 */
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+    
+    /* 声明文件生成 */
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    
+    /* 模块系统 - 使用 ESNext 以支持现代 ESM */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    
+    /* 类型库 - 需要 DOM 类型以支持 fetch、FormData 等 Web API */
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    
+    /* 类型导入扩展名 - 对于 ESM 包，需要 .js 扩展名 */
+    "allowImportingTsExtensions": false,
+    
+    /* 确保类型正确导出 */
+    "verbatimModuleSyntax": false
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "__test__"
+  ]
+}
+
