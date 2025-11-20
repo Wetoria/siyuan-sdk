@@ -3,16 +3,29 @@
  * 支持维护 baseURL 和 token，绑定自定义 fetch，动态添加方法
  */
 
+import { trimSqlBlank } from '$/packages/siyuan-sdk/src/utils'
+
+
+/**
+ * Api types
+ */
+declare module '@wetoria/siyuan-sdk' {
+  interface SiYuanAPI {
+    sql: <T = any>(stmt: string) => SyApiMethodResponse<T[]>
+  }
+}
+
 
 /**
  * 标准 API 响应格式
  */
-export interface ApiResponse<T = any> {
+export interface SyApiResponse<T = any> {
   code: number
   msg: string
   data: T
 }
 
+export type SyApiMethodResponse<T = any> = Promise<SyApiResponse<T>>
 
 
 /**
@@ -37,7 +50,7 @@ export type BaseFetch<T = any> = (
   url: string,
   data?: any,
   options?: RequestOptions
-) => Promise<ApiResponse<T>>
+) => SyApiMethodResponse<T>
 
 /**
  * 自定义 Fetch 函数类型（别名）
@@ -175,14 +188,14 @@ export class SiYuanAPI {
   /**
    * 内部请求方法
    * 如果存在自定义 fetch，使用自定义 fetch；否则使用默认的 baseFetch（会自动设置 baseURL 和 token）
-   * 返回思源标准格式 ApiResponse<T>
+   * 返回思源标准格式 SyApiResponse<T>
    * 此方法为内部方法，禁止外部修改或覆盖
    * 允许在注入的 API 方法中使用
    *
    * @param url - API 端点路径
    * @param data - 请求数据
    * @param options - 请求选项
-   * @returns ApiResponse<T>
+   * @returns SyApiResponse<T>
    *
    * @internal
    */
@@ -190,14 +203,14 @@ export class SiYuanAPI {
     url: string,
     data?: any,
     options?: RequestOptions,
-  ): Promise<ApiResponse<T>> {
+  ): SyApiMethodResponse<T> {
     // 如果提供了自定义 fetch，使用自定义 fetch
     if (this.customFetch) {
-      return await this.customFetch(url, data, options) as ApiResponse<T>
+      return await this.customFetch(url, data, options) as SyApiResponse<T>
     }
 
     // 否则使用默认的 baseFetch
-    return await this._defaultBaseFetch(url, data, options) as ApiResponse<T>
+    return await this._defaultBaseFetch(url, data, options) as SyApiResponse<T>
   }
 }
 
@@ -209,16 +222,20 @@ export function createAPI(config: SiYuanAPIConfig): SiYuanAPI {
 }
 
 
-declare module '@wetoria/siyuan-sdk' {
-  interface SiYuanAPI {
-    sql: (stmt: string) => Promise<ApiResponse<any>>
-  }
-}
 
-SiYuanAPI.prototype.sql = function (stmt: string): Promise<ApiResponse<any>> {
+// #region 👇 Inject Api
+
+SiYuanAPI.prototype.sql = function <T = any>(stmt: string, options: { trim?: boolean } = {}): SyApiMethodResponse<T[]> {
+  const {
+    trim = true,
+  } = options
+  const finalStmt = trim ? trimSqlBlank(stmt) : stmt
   return this.request('/api/query/sql', {
-    stmt,
+    stmt: finalStmt,
   })
 }
+
+
+// #endregion 👆 Inject Api
 
 
