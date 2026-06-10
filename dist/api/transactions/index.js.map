@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../src/api/transactions/index.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,SAAS,EAAE,MAAM,qBAAqB,CAAA;AAkB/C,OAAO;AACP,SAAS,CAAC,SAAS,CAAC,mBAAmB,GAAG,UAAU,IAGnD;IACC,OAAO,IAAI,CAAC,OAAO,CAAC,mBAAmB,EAAE,IAAI,CAAC,CAAA;AAChD,CAAC,CAAA"}

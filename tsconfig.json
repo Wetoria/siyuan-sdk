@@ -22,7 +22,11 @@
     "allowImportingTsExtensions": false,
     
     /* 确保类型正确导出 */
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "paths": {
+      "@wetoria/siyuan-sdk": ["./src/index.ts"],
+      "@wetoria/siyuan-sdk/*": ["./src/*"]
+    }
   },
   "include": [
     "src/**/*"

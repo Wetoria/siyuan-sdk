@@ -1,19 +1,14 @@
 /**
  * SiYuan SDK - API Client
+ *
+ * Supports maintaining baseURL and token, binding custom fetch, and dynamically adding methods
+ *
  * 支持维护 baseURL 和 token，绑定自定义 fetch，动态添加方法
+ *
  */
 
-import { trimSqlBlank } from '$/packages/siyuan-sdk/src/utils'
+import { IWebSocketData } from 'siyuan'
 
-
-/**
- * Api types
- */
-declare module '@wetoria/siyuan-sdk' {
-  interface SiYuanAPI {
-    sql: <T = any>(stmt: string) => SyApiMethodResponse<T[]>
-  }
-}
 
 
 /**
@@ -25,28 +20,38 @@ export interface SyApiResponse<T = any> {
   data: T
 }
 
-export type SyApiMethodResponse<T = any> = Promise<SyApiResponse<T>>
+export type SyApiMethodResponse<T = any> = Promise<SyApiResponse<T> | IWebSocketData | T>
 
 
 /**
  * 请求选项
  */
 export interface RequestOptions {
-  /** 请求方法 */
+  /**
+   * 请求方法
+   * @default POST
+   * @description 请求方法
+   * @example 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+   */
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-  /** 请求头 */
+  /**
+   * 请求头
+   * @default {}
+   * @description 请求头
+   * @example { 'Content-Type': 'application/json' }
+   */
   headers?: Record<string, string>
-  /** 超时时间（毫秒） */
+  /**
+   * 超时时间（毫秒）
+   * @default 30000
+   */
   timeout?: number
 }
-
-
-
 
 /**
  * 基础 Fetch 函数类型（统一的结构）
  */
-export type BaseFetch<T = any> = (
+export type SyBaseApiMethod<T = any> = (
   url: string,
   data?: any,
   options?: RequestOptions
@@ -55,7 +60,7 @@ export type BaseFetch<T = any> = (
 /**
  * 自定义 Fetch 函数类型（别名）
  */
-export type CustomFetch<T = any> = BaseFetch<T>
+export type CustomFetch<T = any> = SyBaseApiMethod<T>
 
 
 
@@ -64,7 +69,7 @@ export type CustomFetch<T = any> = BaseFetch<T>
  */
 export type SiYuanAPIConfig =
   | { baseURL: string, token: string, customFetch?: never }
-  | { baseURL?: never, token?: never, customFetch: BaseFetch }
+  | { baseURL?: never, token?: never, customFetch: SyBaseApiMethod }
 
 
 /**
@@ -81,6 +86,46 @@ export class SiYuanAPI {
 
   constructor(config: SiYuanAPIConfig) {
     this.setConfig(config)
+    // 自动绑定所有原型方法，确保在解构或箭头函数中调用时 this 不会丢失
+    this._bindMethods()
+  }
+
+  /**
+   * 绑定所有原型方法到当前实例
+   * 这样即使方法被解构，this 也能正确指向实例
+   * @private
+   */
+  private _bindMethods(): void {
+    const prototype = SiYuanAPI.prototype
+    const boundMethods = new Set<string>()
+
+    // 获取原型上的所有属性名（包括不可枚举的）
+    const propertyNames = Object.getOwnPropertyNames(prototype)
+
+    for (const name of propertyNames) {
+      // 跳过已绑定的方法和特殊方法
+      if (
+        boundMethods.has(name)
+        || name === 'constructor'
+        || name.startsWith('_')
+        || name === 'setConfig'
+        || name === 'getConfig'
+        || name === 'extractData'
+        || name === '_bindMethods'
+        || name === 'request'
+        || name === 'post'
+      ) {
+        continue
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, name)
+
+      // 只绑定函数类型的属性
+      if (descriptor && typeof descriptor.value === 'function') {
+        ;(this as any)[name] = descriptor.value.bind(this)
+        boundMethods.add(name)
+      }
+    }
   }
 
   setConfig(config: SiYuanAPIConfig): void {
@@ -199,7 +244,7 @@ export class SiYuanAPI {
    *
    * @internal
    */
-  protected async request<T = any>(
+  async request<T = any>(
     url: string,
     data?: any,
     options?: RequestOptions,
@@ -212,6 +257,26 @@ export class SiYuanAPI {
     // 否则使用默认的 baseFetch
     return await this._defaultBaseFetch(url, data, options) as SyApiResponse<T>
   }
+
+
+  async post<T = any>(url: string, data?: any, options?: RequestOptions): SyApiMethodResponse<T> {
+    return await this.request(url, data, {
+      ...options,
+      method: 'POST',
+    }) as SyApiResponse<T>
+  }
+
+
+  /**
+   * 提取响应数据（用于插件模式，直接返回 data）
+   * 如果 code === 0，返回 data；否则返回 null
+   *
+   * @param response - API 响应
+   * @returns 提取的数据或 null
+   */
+  extractData<T>(response: SyApiResponse<T>): T | null {
+    return response.code === 0 ? response.data : null
+  }
 }
 
 /**
@@ -220,22 +285,3 @@ export class SiYuanAPI {
 export function createAPI(config: SiYuanAPIConfig): SiYuanAPI {
   return new SiYuanAPI(config)
 }
-
-
-
-// #region 👇 Inject Api
-
-SiYuanAPI.prototype.sql = function <T = any>(stmt: string, options: { trim?: boolean } = {}): SyApiMethodResponse<T[]> {
-  const {
-    trim = true,
-  } = options
-  const finalStmt = trim ? trimSqlBlank(stmt) : stmt
-  return this.request('/api/query/sql', {
-    stmt: finalStmt,
-  })
-}
-
-
-// #endregion 👆 Inject Api
-
-
